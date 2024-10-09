@@ -1,4 +1,5 @@
 const { db, admin } = require('../config/firebase');
+const { gerarLinkCurto } = require('./linkCurto');
 
 async function buscarProdutoPorNome(nomeProduto) {
     try {
@@ -35,10 +36,13 @@ async function buscarProdutoPorNome(nomeProduto) {
 
             // Se encontrar produtos, adiciona aos resultados
             produtosSnapshot.forEach(produtoDoc => {
-                const produtoData = produtoDoc.data();
-                resultados.push({
+              const produtoData = produtoDoc.data();
+              const longUrl = `https://api.whatsapp.com/send?phone=${distribuidorData.telefone}&text=Ol%C3%A1,%20vim%20pela%20plataforma%20de%20orçamentos,%20gostaria%20de%20comprar%20o%20produto%20${produtoData.nome}%20pelo%20valor%20R$${produtoData.preco}`;
+              const shortLink = gerarLinkCurto(longUrl);
+              
+              resultados.push({
                     distribuidor: distribuidorData.nome_fantasia,
-                    link: `https://api.whatsapp.com/send?phone=${distribuidorData.telefone}&text=Ol%C3%A1,%20vim%20pela%20plataforma%20de%20orçamentos,%20gostaria%20de%20comprar%20o%20produto%20${produtoData.nome}%20pelo%20valor%20R$${produtoData.preco}`, 
+                    link: shortLink, 
                     nome: produtoData.nome,
                     preco: produtoData.preco,
                     quantidade: produtoData.quantidade,
