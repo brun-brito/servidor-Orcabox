@@ -1,0 +1,59 @@
+const { db, admin } = require('../config/firebase');
+
+async function buscarProdutoPorNome(nomeProduto) {
+    try {
+        console.log(`Iniciando busca por produto com nome: ${nomeProduto}`);
+        
+        const usersRef = admin.firestore().collection('distribuidores');
+        const usersSnapshot = await usersRef.get();
+
+        if (usersSnapshot.empty) {
+            console.log('Nenhum distribuidor encontrado');
+            return [];  // Retorna array vazio se não encontrar distribuidores
+        }
+
+        const resultados = [];
+
+        // Itera por cada usuário/distribuidor
+        for (const userDoc of usersSnapshot.docs) {
+          const distribuidorData = userDoc.data();
+          const userId = userDoc.id;
+          console.log(`Buscando produtos para distribuidor: ${userId}`);
+
+          // Referência à subcoleção 'produtos' para o distribuidor atual
+          const produtosRef = usersRef.doc(userId).collection('produtos');
+          
+          // Buscar produtos que tenham o nome igual ao solicitado (case insensitive)
+          const produtosSnapshot = await produtosRef
+              .where('nome_lowercase', '==', nomeProduto.toLowerCase().trim().replace(/\s+/g, ''))
+              .get();
+
+          if (produtosSnapshot.empty) {
+              console.log(`Nenhum produto encontrado para o distribuidor: ${userId}`);
+              continue;  // Vai para o próximo distribuidor se não encontrar produtos
+          }
+
+            // Se encontrar produtos, adiciona aos resultados
+            produtosSnapshot.forEach(produtoDoc => {
+                const produtoData = produtoDoc.data();
+                resultados.push({
+                    distribuidor: distribuidorData.nome_fantasia,
+                    link: `https://wa.me/${distribuidorData.telefone}`, 
+                    nome: produtoData.nome,
+                    preco: produtoData.preco,
+                    quantidade: produtoData.quantidade,
+                    descricao: produtoData.descricao,
+                    categoria: produtoData.categoria
+                });
+            });
+        }
+
+        console.log(`Busca concluída, ${resultados.length} produtos encontrados.`);
+        return resultados;
+    } catch (error) {
+        console.error('Erro ao buscar produtos:', error);
+        throw new Error('Erro ao buscar produtos no Firestore');
+    }
+}
+
+module.exports = { buscarProdutoPorNome };
