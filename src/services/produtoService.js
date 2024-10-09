@@ -38,7 +38,7 @@ async function buscarProdutoPorNome(nomeProduto) {
                 const produtoData = produtoDoc.data();
                 resultados.push({
                     distribuidor: distribuidorData.nome_fantasia,
-                    link: `https://wa.me/${distribuidorData.telefone}`, 
+                    link: `https://api.whatsapp.com/send?phone=${distribuidorData.telefone}&text=Ol%C3%A1,%20vim%20pela%20plataforma%20de%20orçamentos,%20gostaria%20de%20comprar%20o%20produto%20${produtoData.nome}%20pelo%20valor%20R$${produtoData.preco}`, 
                     nome: produtoData.nome,
                     preco: produtoData.preco,
                     quantidade: produtoData.quantidade,
