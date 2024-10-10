@@ -63,7 +63,7 @@ async function buscarProdutosPorNomes(produtos, cepUsuario) {
                       produtosDoDistribuidor.push({
                           nome: produtoData.nome,
                           precoUnitario: produtoData.preco,
-                          quantidadeDisponivel: produtoData.quantidade,
+                          // quantidadeDisponivel: produtoData.quantidade,
                           quantidadeDesejada: quantidadeDesejada,
                           precoTotal: produtoData.preco * quantidadeDesejada
                       });
@@ -84,7 +84,7 @@ async function buscarProdutosPorNomes(produtos, cepUsuario) {
                       produtosDoDistribuidor.push({
                           nome: produtoData.nome,
                           precoUnitario: produtoData.preco,
-                          quantidadeDisponivel: produtoData.quantidade,
+                          // quantidadeDisponivel: produtoData.quantidade,
                           quantidadeDesejada: quantidadeDesejada,
                           precoTotal: produtoData.preco * quantidadeDesejada
                       });
@@ -138,7 +138,7 @@ async function buscarProdutosPorNomes(produtos, cepUsuario) {
       // Ordena os resultados pela pontuação
       resultados.sort((a, b) => b.pontuacao - a.pontuacao);
 
-      return resultados.slice(0, 4);  // Retorna os 4 primeiros resultados mais relevantes
+      return resultados.slice(0, 3);  // Retorna os 4 primeiros resultados mais relevantes
   } catch (error) {
       console.error('Erro ao buscar produtos:', error);
       throw new Error('Erro ao buscar produtos no Firestore');
