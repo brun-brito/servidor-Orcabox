@@ -6,6 +6,7 @@ function gerarLinkCurto(longUrl) {
     const shortId = Math.random().toString(36).substring(2, 8);
     urlMap[shortId] = longUrl;
 
+    // return `http://localhost:3000/api/${shortId}`;
     return `https://${process.env.ENDERECO_SERVIDOR}/api/${shortId}`;
 }
 

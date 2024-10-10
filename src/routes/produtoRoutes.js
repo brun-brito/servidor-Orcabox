@@ -1,10 +1,10 @@
 const express = require('express');
-const { buscarProduto } = require('../controllers/produtoController');
+const { buscarProdutos } = require('../controllers/produtoController');
 const { redirecionarLink } = require('../utils/linkCurto');
 
 const router = express.Router();
 
-router.get('/buscar-produto', buscarProduto);
+router.post('/buscar-produtos', buscarProdutos);
 router.get('/:shortId', redirecionarLink);
 
 module.exports = router;
