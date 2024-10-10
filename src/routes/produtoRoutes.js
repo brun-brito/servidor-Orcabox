@@ -1,6 +1,6 @@
 const express = require('express');
 const { buscarProduto } = require('../controllers/produtoController');
-const { redirecionarLink } = require('../services/linkCurto');
+const { redirecionarLink } = require('../utils/linkCurto');
 
 const router = express.Router();
 

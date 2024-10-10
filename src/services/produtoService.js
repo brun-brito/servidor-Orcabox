@@ -1,5 +1,8 @@
 const { db, admin } = require('../config/firebase');
-const { gerarLinkCurto } = require('./linkCurto');
+const { gerarLinkCurto } = require('../utils/linkCurto');
+const levenshteinDistance = require('../utils/levenshtein');
+const calcularDistancia = require('../utils/calcularDistancia');
+const calcularPontuacao = require('../utils/calcularPontuacao');
 
 async function buscarProdutoPorNome(nomeProduto) {
     try {
@@ -10,50 +13,67 @@ async function buscarProdutoPorNome(nomeProduto) {
 
         if (usersSnapshot.empty) {
             console.log('Nenhum distribuidor encontrado');
-            return [];  // Retorna array vazio se não encontrar distribuidores
+            return [];
         }
 
         const resultados = [];
 
-        // Itera por cada usuário/distribuidor
         for (const userDoc of usersSnapshot.docs) {
           const distribuidorData = userDoc.data();
           const userId = userDoc.id;
           console.log(`Buscando produtos para distribuidor: ${userId}`);
 
-          // Referência à subcoleção 'produtos' para o distribuidor atual
           const produtosRef = usersRef.doc(userId).collection('produtos');
-          
-          // Buscar produtos que tenham o nome igual ao solicitado (case insensitive)
-          const produtosSnapshot = await produtosRef
-              .where('nome_lowercase', '==', nomeProduto.toLowerCase().trim().replace(/\s+/g, ''))
-              .get();
+          const produtosSnapshot = await produtosRef.get();
 
           if (produtosSnapshot.empty) {
               console.log(`Nenhum produto encontrado para o distribuidor: ${userId}`);
               continue;  // Vai para o próximo distribuidor se não encontrar produtos
           }
 
-            // Se encontrar produtos, adiciona aos resultados
-            produtosSnapshot.forEach(produtoDoc => {
+          const distanciaDistribuidor = await calcularDistancia('38408204', distribuidorData.cep);
+          
+          // Faz a comparação com Levenshtein
+          produtosSnapshot.forEach(produtoDoc => {
               const produtoData = produtoDoc.data();
+              const similaridade = levenshteinDistance(nomeProduto.toLowerCase(), produtoData.nome.toLowerCase());
               const longUrl = `https://api.whatsapp.com/send?phone=${distribuidorData.telefone}&text=Ol%C3%A1,%20vim%20pela%20plataforma%20de%20orçamentos,%20gostaria%20de%20comprar%20o%20produto%20${produtoData.nome}%20pelo%20valor%20R$${produtoData.preco}`;
               const shortLink = gerarLinkCurto(longUrl);
-              
-              resultados.push({
+              const pontuacao = calcularPontuacao(similaridade, distanciaDistribuidor);
+
+              if (similaridade <= 5){
+                // Adiciona os resultados com pontuação baseada na distância e similaridade
+                resultados.push({
                     distribuidor: distribuidorData.nome_fantasia,
                     link: shortLink, 
                     nome: produtoData.nome,
                     preco: produtoData.preco,
                     quantidade: produtoData.quantidade,
-                    descricao: produtoData.descricao,
-                    categoria: produtoData.categoria
+                    marca: produtoData.marca,
+                    categoria: produtoData.categoria,
+                    distancia: distanciaDistribuidor,
+                    similaridade: similaridade,
+                    pontuacao: pontuacao
                 });
-            });
+              }
+          });
         }
 
-        console.log(`Busca concluída, ${resultados.length} produtos encontrados.`);
-        return resultados;
+        // Ordena os resultados pela maior pontuação (maior relevância)
+        resultados.sort((a, b) => b.pontuacao - a.pontuacao);
+
+        // Exibe apenas os 4 primeiros resultados com maior pontuação
+        const topResultados = resultados.slice(0, 4);
+
+        // Verifica se algum resultado tem uma similaridade muito baixa e avisa o usuário
+        const similaridadeLimite = 5;  // Defina um valor de limite, quanto maior, mais "diferente" o nome
+        const aviso = topResultados.some(resultado => resultado.similaridade > similaridadeLimite);
+
+        if (aviso) {
+            console.log("Aviso: Algumas correspondências podem não ser exatas, verifique os resultados com atenção.");
+        }
+
+        return topResultados;
     } catch (error) {
         console.error('Erro ao buscar produtos:', error);
         throw new Error('Erro ao buscar produtos no Firestore');
