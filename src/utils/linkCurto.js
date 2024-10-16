@@ -13,8 +13,8 @@ function gerarLinkCurto(longUrl, distribuidorId, profissional, buscaRealizada) {
         isValid: true
     };
 
-    return `http://localhost:3000/v1/${shortId}`;
-    // return `https://${process.env.ENDERECO_SERVIDOR}/v1/${shortId}`;
+    // return `http://localhost:3000/v1/${shortId}`;
+    return `https://${process.env.ENDERECO_SERVIDOR}/v1/${shortId}`;
 }
 
 async function redirecionarLink(req, res) {

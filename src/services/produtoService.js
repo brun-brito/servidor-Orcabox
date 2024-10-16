@@ -163,25 +163,18 @@ async function buscarProfissionalPorCep(cep) {
         let usuarioCorrespondente = null;
         let menorDistancia = Infinity;
 
-        // Itera sobre todos os documentos e calcula a distância de Levenshtein entre o CEP fornecido e o CEP armazenado
         snapshot.forEach(doc => {
             const usuarioData = doc.data();
             const cepBanco = usuarioData.cep;
-
-            // Calcula a distância de Levenshtein entre os CEPs
             const distancia = levenshteinDistance(cep, cepBanco);
-
-            // Define um limite para a similaridade, por exemplo, distância <= 1
             const limiteSimilaridade = 1;
 
-            // Se a distância for menor que o limite e menor que a menor distância registrada, armazena o usuário correspondente
             if (distancia <= limiteSimilaridade && distancia < menorDistancia) {
                 menorDistancia = distancia;
                 usuarioCorrespondente = usuarioData;
             }
         });
 
-        // Retorna o nome do usuário encontrado ou uma mensagem informando que não encontrou
         if (usuarioCorrespondente) {
             return usuarioCorrespondente;
         } else {
