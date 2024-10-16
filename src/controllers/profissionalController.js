@@ -2,7 +2,7 @@ const { buscarDadosPorTelefone } = require('../services/profissionalService');
 
 // Controller para verificar se o usuário está cadastrado
 async function verificarCadastro(req, res) {
-    const { telefone } = req.body;  // Obtém o telefone do corpo da requisição
+    const { telefone } = req.body;
 
     if (!telefone) {
         return res.status(400).json({ 
@@ -35,6 +35,7 @@ async function verificarCadastro(req, res) {
             status: true, 
             cep: profissional.cep,
             nome: profissional.nome,
+            telefone: profissional.telefone,
         });
     } catch (error) {
         console.error('Erro ao verificar o cadastro:', error);

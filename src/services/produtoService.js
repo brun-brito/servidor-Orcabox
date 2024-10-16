@@ -5,7 +5,7 @@ const calcularDistancia = require('../utils/calcularDistancia');
 const calcularPontuacao = require('../utils/calcularPontuacao');
 
 // Função modificada para aceitar uma lista de produtos e suas quantidades
-async function buscarProdutosPorNomes(produtos, cepUsuario) {
+async function buscarProdutosPorNomes(produtos, profissional) {
     try {
         console.log(`Iniciando busca por múltiplos produtos.`);
 
@@ -33,7 +33,7 @@ async function buscarProdutosPorNomes(produtos, cepUsuario) {
                 continue;
             }
 
-            const distanciaDistribuidor = await calcularDistancia(cepUsuario, distribuidorData.cep);
+            const distanciaDistribuidor = await calcularDistancia(profissional.cep, distribuidorData.cep);
 
             let produtosDisponiveis = 0;
             let totalProdutosExatos = 0;
@@ -108,8 +108,7 @@ async function buscarProdutosPorNomes(produtos, cepUsuario) {
                 : `Olá, vim pela plataforma de orçamentos, gostaria de comprar ${nomesDosProdutos.join(', ')} pelo valor de R$${valorTotalOrcamento}`;
 
             const longUrl = `https://api.whatsapp.com/send?phone=${distribuidorData.telefone}&text=${encodeURIComponent(mensagem)}`;
-            const idBuscador = await buscarProfissionalPorCep(cepUsuario);
-            const shortLink = gerarLinkCurto(longUrl, userId, idBuscador, nomesDosProdutos.join(', '));
+            const shortLink = gerarLinkCurto(longUrl, userId, profissional, nomesDosProdutos.join(', '));
 
             const pontuacao = calcularPontuacao(distanciaDistribuidor, completude, valorTotalOrcamento);
 

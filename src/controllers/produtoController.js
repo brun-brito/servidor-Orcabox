@@ -1,18 +1,25 @@
 const { buscarProdutosPorNomes } = require('../services/produtoService');
+const { buscarDadosPorTelefone } = require('../services/profissionalService');
 
 async function buscarProdutos(req, res) {
-    const { produtos, cepUsuario } = req.body;  // Obter a lista de produtos e o CEP do usuário do corpo da requisição
+    const { produtos, telefone } = req.body;
 
     if (!produtos || !Array.isArray(produtos) || produtos.length === 0) {
         return res.status(400).json({ message: 'A lista de produtos e suas quantidades é obrigatória.' });
     }
 
-    if (!cepUsuario) {
-        return res.status(400).json({ message: 'O CEP do usuário é obrigatório.' });
+    if (!telefone) {
+        return res.status(400).json({ message: 'O telefone do usuário é obrigatório.' });
     }
 
     try {
-        const resultados = await buscarProdutosPorNomes(produtos, cepUsuario);
+        const profissional = await buscarDadosPorTelefone(telefone);
+
+        if (!profissional) {
+            return res.status(404).json({ message: 'Profissional não encontrado.' });
+        }
+
+        const resultados = await buscarProdutosPorNomes(produtos, profissional);
         if (resultados.length === 0) {
             return res.status(404).json({ message: 'Nenhum produto encontrado.' });
         }
