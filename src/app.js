@@ -1,6 +1,6 @@
 const express = require('express');
 const produtoRoutes = require('./routes/produtoRoutes');
-const profissionalRoutes = require('./routes/profissionalRoutes');  // Importe as rotas de profissionais
+const profissionalRoutes = require('./routes/profissionalRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;

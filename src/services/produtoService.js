@@ -17,7 +17,7 @@ async function buscarProdutosPorNomes(produtos, cepUsuario) {
             return [];
         }
 
-        const resultadosAgrupados = {};  // Para armazenar os resultados agrupados por distribuidor
+        const resultadosAgrupados = [];
 
         // Itera por cada distribuidor
         for (const userDoc of usersSnapshot.docs) {
@@ -29,57 +29,46 @@ async function buscarProdutosPorNomes(produtos, cepUsuario) {
             const produtosSnapshot = await produtosRef.get();
 
             if (produtosSnapshot.empty) {
-                console.log(`Nenhum produto encontrado para o distribuidor: ${userId}`);
+                console.log(`Nenhum produto encontrado para o distribuidor: ${distribuidorData.nome_fantasia}`);
                 continue;
             }
-            
+
             const distanciaDistribuidor = await calcularDistancia(cepUsuario, distribuidorData.cep);
 
-            let produtosDisponiveis = 0;  // Para calcular o fator de completude
-            let totalProdutosExatos = 0;  // Para contar apenas os produtos que tiveram match exato (cenário 1)
-            const totalProdutos = produtos.length;  // Total de produtos requisitados
-            let valorTotalOrcamento = 0;  // Soma do valor total dos produtos para esse distribuidor
-            let nomesDosProdutos = [];  // Para armazenar os nomes dos produtos para o link
+            let produtosDisponiveis = 0;
+            let totalProdutosExatos = 0;
+            const totalProdutos = produtos.length;
+            let valorTotalOrcamento = 0;
+            let nomesDosProdutos = [];
+            let produtosDoDistribuidor = [];
 
-            let produtosDoDistribuidor = [];  // Para armazenar os produtos de cada distribuidor
-
-            // Itera por cada produto da lista que o usuário está buscando
             for (const item of produtos) {
-                const nomeProduto = item.nome.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const nomeProduto = normalizarTexto(item.nome);
                 const quantidadeDesejada = item.quantidade;
-
-                // Divide o nome do produto buscado em partes
-                const partesNomeProduto = nomeProduto.split(' ');
-
-                let produtoEncontrado = false;  // Flag para saber se o produto foi encontrado
-                let melhorSimilaridade = Infinity;  // Variável para armazenar a melhor similaridade encontrada
-                let melhorProduto;  // Para armazenar o melhor produto encontrado (para cenários 2 e 3)
-
+                const partesNomeProduto = item.nome.split(' ').map(parte => normalizarTexto(parte));
+                let produtoEncontrado = false;
+                let melhorSimilaridade = Infinity;
+                let melhorProduto;
+            
                 produtosSnapshot.forEach(produtoDoc => {
                     const produtoData = produtoDoc.data();
-                    const nomeProdutoDataNormalizado = produtoData.nome_lowercase.replace(/[^a-z0-9]/g, '');
-
-                    // console.log(`Comparando: ${nomeProduto} com ${nomeProdutoDataNormalizado}`);
+                    const nomeProdutoDataNormalizado = normalizarTexto(produtoData.nome_lowercase);
                     const similaridade = levenshteinDistance(nomeProduto, nomeProdutoDataNormalizado);
-
-                    // Cenário 1: Match Perfeito (distância 0)
+            
                     if (similaridade === 0 && produtoData.quantidade >= quantidadeDesejada) {
-                        produtosDisponiveis++;  // Contabiliza produto disponível
-                        totalProdutosExatos++;  // Contabiliza match exato
-                        valorTotalOrcamento += produtoData.preco * quantidadeDesejada;  // Soma o valor ao orçamento
-                        nomesDosProdutos.push(`${quantidadeDesejada} unidade(s) de ${produtoData.nome}`);  // Adiciona o nome e quantidade ao array
+                        produtosDisponiveis++;
+                        totalProdutosExatos++;
+                        valorTotalOrcamento += produtoData.preco * quantidadeDesejada;
+                        nomesDosProdutos.push(`${quantidadeDesejada} unidade(s) de ${produtoData.nome}`);
                         produtoEncontrado = true;
-
+            
                         produtosDoDistribuidor.push({
                             nome: produtoData.nome,
                             precoUnitario: produtoData.preco,
                             quantidadeDesejada: quantidadeDesejada,
                             precoTotal: produtoData.preco * quantidadeDesejada
                         });
-                    }
-
-                    // Cenário 2: Similaridade entre 1 e 3 ou match com uma parte do nome
-                    else if (similaridade > 0 && similaridade <= 3 && produtoData.quantidade >= quantidadeDesejada) {
+                    } else if (similaridade > 0 && similaridade <= 3 && produtoData.quantidade >= quantidadeDesejada) {
                         if (similaridade < melhorSimilaridade) {
                             melhorSimilaridade = similaridade;
                             melhorProduto = {
@@ -89,10 +78,7 @@ async function buscarProdutosPorNomes(produtos, cepUsuario) {
                                 precoTotal: produtoData.preco * quantidadeDesejada
                             };
                         }
-                    }
-
-                    // Cenário 2 (Split): Se qualquer parte do nome do produto buscado tiver match com o nome do produto do banco
-                    else if (partesNomeProduto.some(parte => nomeProdutoDataNormalizado.includes(parte)) && produtoData.quantidade >= quantidadeDesejada) {
+                    } else if (partesNomeProduto.some(parte => nomeProdutoDataNormalizado.includes(parte)) && produtoData.quantidade >= quantidadeDesejada) {
                         if (similaridade < melhorSimilaridade) {
                             melhorSimilaridade = similaridade;
                             melhorProduto = {
@@ -102,82 +88,67 @@ async function buscarProdutosPorNomes(produtos, cepUsuario) {
                                 precoTotal: produtoData.preco * quantidadeDesejada
                             };
                         }
+                    } else {
+                        
                     }
                 });
-
-                // Cenário 3: Produto semelhante encontrado (pelo split ou similaridade)
+            
                 if (!produtoEncontrado && melhorProduto) {
-                    produtosDisponiveis++;  // Contabiliza produto disponível
-                    valorTotalOrcamento += melhorProduto.precoTotal;  // Soma o valor ao orçamento
-                    nomesDosProdutos.push(`${quantidadeDesejada} unidade(s) de ${melhorProduto.nome}`);  // Adiciona o nome e quantidade ao array
-
+                    produtosDisponiveis++;
+                    valorTotalOrcamento += melhorProduto.precoTotal;
+                    nomesDosProdutos.push(`${quantidadeDesejada} unidade(s) de ${melhorProduto.nome}`);
                     produtosDoDistribuidor.push(melhorProduto);
-                    produtoEncontrado = true;
-                }
-
-                if (!produtoEncontrado) {
-                    console.log(`Produto "${nomeProduto}" não encontrado ou não disponível em quantidade suficiente no distribuidor ${distribuidorData.nome_fantasia}.`);
                 }
             }
+            
 
-            // Atualiza o campo "temTodosOsProdutos" apenas se todos os produtos tiverem match exato (cenário 1)
             const completude = totalProdutosExatos === totalProdutos;
-
-            // Monta o link geral para o distribuidor
-            let mensagem;
-            let buscaRealizada = produtosDoDistribuidor.map(produto => produto.nome).join(', ');
-            if (produtosDoDistribuidor.length === 1) {
-                // Caso seja apenas 1 produto
-                const produto = produtosDoDistribuidor[0];
-                mensagem = `Olá, vim pela plataforma de orçamentos, gostaria de comprar ${produto.quantidadeDesejada} unidade(s) do produto ${produto.nome} pelo valor de R$${produto.precoTotal}`;
-            } else {
-                // Caso seja mais de 1 produto
-                mensagem = `Olá, vim pela plataforma de orçamentos, gostaria de comprar ${nomesDosProdutos.join(', ')} pelo valor de R$${valorTotalOrcamento}`;
-            }
+            const mensagem = produtosDoDistribuidor.length === 1
+                ? `Olá, vim pela plataforma de orçamentos, gostaria de comprar ${produtosDoDistribuidor[0].quantidadeDesejada} unidade(s) do produto ${produtosDoDistribuidor[0].nome} pelo valor de R$${produtosDoDistribuidor[0].precoTotal}`
+                : `Olá, vim pela plataforma de orçamentos, gostaria de comprar ${nomesDosProdutos.join(', ')} pelo valor de R$${valorTotalOrcamento}`;
 
             const longUrl = `https://api.whatsapp.com/send?phone=${distribuidorData.telefone}&text=${encodeURIComponent(mensagem)}`;
             const idBuscador = await buscarProfissionalPorCep(cepUsuario);
-            const shortLink = gerarLinkCurto(longUrl, userId, idBuscador, buscaRealizada);
+            const shortLink = gerarLinkCurto(longUrl, userId, idBuscador, nomesDosProdutos.join(', '));
 
-            // Calcular a pontuação com base na distância, completude e preço total do orçamento
             const pontuacao = calcularPontuacao(distanciaDistribuidor, completude, valorTotalOrcamento);
 
-            // Agrupa os resultados por distribuidor no formato desejado
             if (produtosDoDistribuidor.length > 0) {
-                if (!resultadosAgrupados[distribuidorData.nome_fantasia]) {
-                    resultadosAgrupados[distribuidorData.nome_fantasia] = {
-                        distribuidor: distribuidorData.nome_fantasia,
-                        distancia: distanciaDistribuidor,
-                        valorTotalOrcamento: valorTotalOrcamento,
-                        temTodosOsProdutos: completude,  // Apenas match exato define completude
-                        produtos: produtosDoDistribuidor,
-                        pontuacao: pontuacao,  // Adiciona a pontuação calculada
-                        link: shortLink  // Adiciona o link único
-                    };
-                }
+                resultadosAgrupados.push({
+                    orcamento: "",
+                    distancia: distanciaDistribuidor,
+                    valorTotalOrcamento: valorTotalOrcamento,
+                    temTodosOsProdutos: completude,
+                    produtos: produtosDoDistribuidor,
+                    pontuacao: pontuacao,
+                    link: shortLink
+                });
             }
         }
 
-        // Converte o objeto em um array para retornar
-        const resultados = Object.values(resultadosAgrupados);
+        const resultados = resultadosAgrupados.sort((a, b) => b.pontuacao - a.pontuacao);
 
-        // Ordena os resultados pela pontuação
-        resultados.sort((a, b) => b.pontuacao - a.pontuacao);
+        resultados.forEach((resultado, index) => {
+            resultado.orcamento = `Orçamento ${index + 1}`;
+        });
 
-        // Verifica se algum produto foi encontrado, caso contrário retorna uma mensagem de erro
         if (resultados.length === 0) {
             console.log('Nenhum produto encontrado.');
             return [{ mensagem: 'Nenhum produto foi encontrado com base nos critérios de busca.' }];
         }
 
-        return resultados.slice(0, 3);  // Retorna os 3 primeiros resultados mais relevantes
+        return resultados.slice(0, 3);
     } catch (error) {
         console.error('Erro ao buscar produtos:', error);
         throw new Error('Erro ao buscar produtos no Firestore');
     }
 }
 
-  
+function normalizarTexto(texto) {
+    const textoSemAcento = texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const textoNormalizado = textoSemAcento.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    return textoNormalizado;
+}
 
 async function buscarProfissionalPorCep(cep) {
     try {
