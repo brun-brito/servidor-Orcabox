@@ -5,6 +5,6 @@ const { redirecionarLink } = require('../utils/linkCurto');
 const router = express.Router();
 
 router.post('/buscar-produtos', buscarProdutos);
-router.get('/:shortId', redirecionarLink);
+router.get('/send/:shortId', redirecionarLink);
 
 module.exports = router;

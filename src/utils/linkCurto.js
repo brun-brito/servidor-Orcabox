@@ -13,7 +13,7 @@ function gerarLinkCurto(longUrl, distribuidorId, profissional, buscaRealizada) {
         isValid: true
     };
 
-    return `${process.env.ENDERECO_SERVIDOR}/v1/${shortId}`;
+    return `${process.env.ENDERECO_SERVIDOR}/v1/send/${shortId}`;
 }
 
 async function redirecionarLink(req, res) {
