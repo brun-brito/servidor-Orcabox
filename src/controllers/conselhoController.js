@@ -1,17 +1,17 @@
-const cpfService = require('../services/conselhoService');
+const { consultarConselhoAPI } = require('../services/conselhoService');
 
-exports.consultarCPF = async (req, res) => {
-    const { cpf, birthdate } = req.query;
+exports.verificarConselho = async (req, res) => {
+    const { conselho, uf, inscricao } = req.body;
 
-    if (!cpf || !birthdate) {
-        return res.status(400).json({ error: 'CPF e data de nascimento são obrigatórios.' });
+    if (!conselho || !uf || !inscricao) {
+        return res.status(400).json({ message: 'Campos obrigatórios não preenchidos.' });
     }
 
     try {
-        const data = await cpfService.consultarCPF(cpf, birthdate);
+        const data = await consultarConselhoAPI(conselho, uf, inscricao);
         res.status(200).json(data);
     } catch (error) {
-        console.error('Erro no controller:', error.message);
-        res.status(500).json({ error: 'Erro ao consultar CPF.' });
+        console.error('Erro ao verificar conselho:', error.message);
+        res.status(500).json({ message: 'Erro ao verificar conselho.' });
     }
 };
