@@ -1,7 +1,9 @@
 const express = require('express');
-const { verificarConselho } = require('../controllers/conselhoController');
+const conselhoController = require('../controllers/conselhoController');
+
 const router = express.Router();
 
-router.post('/consultar-conselho', verificarConselho);
+// Rota para consultar conselhos
+router.post('/consultar-conselho', conselhoController.consultarConselho);
 
 module.exports = router;
