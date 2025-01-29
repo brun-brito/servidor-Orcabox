@@ -2,24 +2,25 @@ const { db, admin } = require('../config/firebase');
 const levenshteinDistance = require('../utils/levenshtein');  // Importe o cálculo de Levenshtein
 
 // Função que busca o profissional pelo telefone (com tolerância) e retorna o CEP
-async function buscarDadosPorTelefone(telefone) {
+async function buscarDadosPorTelefone(telefone, isDistribuidor = false) {
     try {
-        // Busca todos os profissionais
-        const profissionaisRef = admin.firestore().collection('profissionais');
-        const snapshot = await profissionaisRef.get();
+        // Define a coleção com base no parâmetro isDistribuidor
+        const colecao = isDistribuidor ? 'distribuidores' : 'profissionais';
+        const usuariosRef = admin.firestore().collection(colecao);
+        const snapshot = await usuariosRef.get();
 
         if (snapshot.empty) {
-            console.log('Nenhum profissional encontrado.');
+            console.log(`Nenhum usuário encontrado na coleção ${colecao}.`);
             return null;
         }
 
-        let profissionalCorrespondente = null;
-        let menorDistancia = Infinity;  // Inicia com uma distância máxima
+        let usuarioCorrespondente = null;
+        let menorDistancia = Infinity; // Inicia com uma distância máxima
 
         // Itera por todos os documentos e calcula a distância de Levenshtein
         snapshot.forEach(doc => {
-            const profissional = doc.data();
-            const telefoneBanco = profissional.telefone;
+            const usuario = doc.data();
+            const telefoneBanco = usuario.telefone;
 
             // Calcula a distância de Levenshtein entre o telefone buscado e o armazenado
             const distancia = levenshteinDistance(telefone, telefoneBanco);
@@ -27,26 +28,28 @@ async function buscarDadosPorTelefone(telefone) {
             // Define um limite para considerar telefones próximos (ex: distância <= 2)
             const limiteSimilaridade = 1;
 
-            // Se a distância é menor que o limite e menor que a menor distância registrada, salva o profissional
+            // Se a distância é menor que o limite e menor que a menor distância registrada, salva o usuário
             if (distancia <= limiteSimilaridade && distancia < menorDistancia) {
                 menorDistancia = distancia;
-                profissionalCorrespondente = profissional;
+                usuarioCorrespondente = {
+                    id: doc.id,
+                    ...usuario,
+                };
             }
         });
 
-        // Verifica se algum profissional correspondente foi encontrado
-        if (!profissionalCorrespondente) {
-            console.log(`Nenhum profissional encontrado com número similar ao telefone: ${telefone}`);
+        // Verifica se algum usuário correspondente foi encontrado
+        if (!usuarioCorrespondente) {
+            console.log(`Nenhum usuário encontrado com número similar ao telefone: ${telefone}`);
             return null;
         }
 
-        // Retorna todos os dados do profissional correspondente
-        return profissionalCorrespondente;
+        // Retorna todos os dados do usuário correspondente
+        return usuarioCorrespondente;
     } catch (error) {
-        console.error('Erro ao buscar o profissional:', error);
-        throw new Error('Erro ao buscar o profissional pelo telefone');
+        console.error('Erro ao buscar o usuário:', error);
+        throw new Error('Erro ao buscar o usuário pelo telefone');
     }
 }
-
 
 module.exports = { buscarDadosPorTelefone };

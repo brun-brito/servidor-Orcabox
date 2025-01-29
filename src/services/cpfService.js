@@ -23,7 +23,7 @@ exports.consultarCPF = (cpf, birthdate) => {
         },
     };
 
-    console.log('Requisição para API Infosimples:', options); // Log da requisição
+    console.log('Requisição para API CPF:', options); // Log da requisição
 
     return new Promise((resolve, reject) => {
         request(options, (error, response, body) => {

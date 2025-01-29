@@ -2,7 +2,7 @@ const { buscarDadosPorTelefone } = require('../services/profissionalService');
 
 // Controller para verificar se o usuário está cadastrado
 async function verificarCadastro(req, res) {
-    const { telefone } = req.body;
+    const { telefone, isDistribuidor = false } = req.body;
 
     if (!telefone) {
         return res.status(400).json({ 
@@ -12,9 +12,9 @@ async function verificarCadastro(req, res) {
     }
 
     try {
-        const profissional = await buscarDadosPorTelefone(telefone);
+        const usuario = await buscarDadosPorTelefone(telefone, isDistribuidor);
 
-        if (!profissional) {
+        if (!usuario) {
             return res.status(404).json({ 
                 message: 'Usuário não encontrado ou não cadastrado.', 
                 status: false 
@@ -22,7 +22,7 @@ async function verificarCadastro(req, res) {
         }
 
         // Verifica se o campo "pagamento" é true
-        if (!profissional.pagamento) {
+        if (!isDistribuidor && !usuario.pagamento) {
             return res.status(403).json({ 
                 message: 'Usuário encontrado, mas o pagamento não está em dia.', 
                 status: false 
@@ -33,9 +33,10 @@ async function verificarCadastro(req, res) {
         return res.status(200).json({ 
             message: 'Usuário está cadastrado e o pagamento está em dia.', 
             status: true, 
-            cep: profissional.cep,
-            nome: profissional.nome,
-            telefone: profissional.telefone,
+            cep: usuario.cep,
+            nome: usuario.nome || usuario.nome_fantasia, //caso seja distribuidor
+            telefone: usuario.telefone,
+            id: usuario.id
         });
     } catch (error) {
         console.error('Erro ao verificar o cadastro:', error);

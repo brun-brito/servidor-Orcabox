@@ -3,6 +3,7 @@ const { gerarLinkCurto } = require('../utils/linkCurto');
 const levenshteinDistance = require('../utils/levenshtein');
 const calcularDistancia = require('../utils/calcularDistancia');
 const calcularPontuacao = require('../utils/calcularPontuacao');
+const normalizarTexto = require('../utils/normalizarTexto');
 
 // Função modificada para aceitar uma lista de produtos e suas quantidades
 async function buscarProdutosPorNomes(produtos, profissional) {
@@ -140,49 +141,6 @@ async function buscarProdutosPorNomes(produtos, profissional) {
     } catch (error) {
         console.error('Erro ao buscar produtos:', error);
         throw new Error('Erro ao buscar produtos no Firestore');
-    }
-}
-
-function normalizarTexto(texto) {
-    const textoSemAcento = texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const textoNormalizado = textoSemAcento.replace(/[^a-z0-9]/gi, '').toLowerCase();
-    return textoNormalizado;
-}
-
-async function buscarProfissionalPorCep(cep) {
-    try {
-        const usuariosRef = db.collection('profissionais');
-        const snapshot = await usuariosRef.get();
-
-        if (snapshot.empty) {
-            console.log('Nenhum usuário encontrado.');
-            return null;
-        }
-
-        let usuarioCorrespondente = null;
-        let menorDistancia = Infinity;
-
-        snapshot.forEach(doc => {
-            const usuarioData = doc.data();
-            const cepBanco = usuarioData.cep;
-            const distancia = levenshteinDistance(cep, cepBanco);
-            const limiteSimilaridade = 1;
-
-            if (distancia <= limiteSimilaridade && distancia < menorDistancia) {
-                menorDistancia = distancia;
-                usuarioCorrespondente = usuarioData;
-            }
-        });
-
-        if (usuarioCorrespondente) {
-            return usuarioCorrespondente;
-        } else {
-            console.log(`Nenhum usuário encontrado com CEP similar ao fornecido: ${cep}`);
-            return null;
-        }
-    } catch (error) {
-        console.error('Erro ao buscar o usuário pelo CEP:', error);
-        throw new Error('Erro ao buscar o usuário pelo CEP');
     }
 }
 

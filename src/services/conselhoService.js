@@ -12,7 +12,7 @@ exports.verificarConselho = ({ conselho, uf, inscricao, nome }) => {
         form: formData,
     };
 
-    console.log(`Requisição para API: `, options);
+    console.log(`Requisição para API CONSELHO: `, options);
 
     return new Promise((resolve, reject) => {
         request(options, (error, response, body) => {
