@@ -51,12 +51,13 @@ exports.excluirProduto = async (idDistribuidor, nomeProduto) => {
 
         let produtoCorrespondente = null;
         let menorDistancia = Infinity;
+        const nomePesquisa = normalizarTexto(nomeProduto);
 
         snapshot.forEach(doc => {
             const produto = doc.data();
-            const nomeBanco = produto.nome_lowercase;
+            const nomeBanco = normalizarTexto(produto.nome_lowercase);
 
-            const distancia = levenshteinDistance(nomeProduto, nomeBanco);
+            const distancia = levenshteinDistance(nomePesquisa, nomeBanco);
             const limiteSimilaridade = 2;
 
             if (distancia <= limiteSimilaridade && distancia < menorDistancia) {
@@ -174,12 +175,13 @@ exports.editarProduto = async (idDistribuidor, nomeProduto, dadosAtualizados) =>
 
         let produtoCorrespondente = null;
         let menorDistancia = Infinity;
+        const nomePesquisa = normalizarTexto(nomeProduto);
 
         snapshot.forEach(doc => {
             const produto = doc.data();
-            const nomeBanco = produto.nome;
+            const nomeBanco = normalizarTexto(produto.nome_lowercase);
 
-            const distancia = levenshteinDistance(nomeProduto, nomeBanco);
+            const distancia = levenshteinDistance(nomePesquisa, nomeBanco);
             const limiteSimilaridade = 2;
 
             if (distancia <= limiteSimilaridade && distancia < menorDistancia) {
