@@ -67,7 +67,8 @@ async function buscarProdutosPorNomes(produtos, profissional) {
                             nome: produtoData.nome,
                             precoUnitario: produtoData.preco,
                             quantidadeDesejada: quantidadeDesejada,
-                            precoTotal: produtoData.preco * quantidadeDesejada
+                            precoTotal: produtoData.preco * quantidadeDesejada,
+                            categoria: produtoData.categoria
                         });
                     } else if (similaridade > 0 && similaridade <= 3 && produtoData.quantidade >= quantidadeDesejada) {
                         if (similaridade < melhorSimilaridade) {
@@ -76,7 +77,8 @@ async function buscarProdutosPorNomes(produtos, profissional) {
                                 nome: produtoData.nome,
                                 precoUnitario: produtoData.preco,
                                 quantidadeDesejada: quantidadeDesejada,
-                                precoTotal: produtoData.preco * quantidadeDesejada
+                                precoTotal: produtoData.preco * quantidadeDesejada,
+                                categoria: produtoData.categoria
                             };
                         }
                     } else if (partesNomeProduto.some(parte => nomeProdutoDataNormalizado.includes(parte)) && produtoData.quantidade >= quantidadeDesejada) {
@@ -86,7 +88,8 @@ async function buscarProdutosPorNomes(produtos, profissional) {
                                 nome: produtoData.nome,
                                 precoUnitario: produtoData.preco,
                                 quantidadeDesejada: quantidadeDesejada,
-                                precoTotal: produtoData.preco * quantidadeDesejada
+                                precoTotal: produtoData.preco * quantidadeDesejada,
+                                categoria: produtoData.categoria
                             };
                         }
                     } else {
