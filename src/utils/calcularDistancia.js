@@ -1,8 +1,9 @@
 const axios = require('axios');
+require('dotenv').config();
 
 async function calcularDistancia(cepUsuario, cepDistribuidor) {
-    // const API_KEY = 'AIzaSyCTr-yK-bgmrpJ-X21GYuvAxIQoAS7ynmQ';
-    const API_KEY = 'AIzaSyCXo798ytk7Gs53WAIv0cjr-3ooeVHuw18';
+    const API_KEY = process.env.API_KEY_GOOGLE_MAPS;
+    
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${cepUsuario}&destination=${cepDistribuidor}&key=${API_KEY}&mode=driving`;
     try {
         const response = await axios.get(url);
