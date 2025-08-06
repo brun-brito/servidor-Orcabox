@@ -1,38 +1,42 @@
-const request = require('request');
+const axios = require('axios');
 require('dotenv').config();
 const API_TOKEN = process.env.API_KEY_INFOSIMPLES;
 
 // Função genérica para verificar o conselho com base nos parâmetros
-exports.verificarConselho = ({ conselho, uf, inscricao, nome }) => {
+exports.verificarConselho = async ({ conselho, uf, inscricao, nome }) => {
     const { url, formData } = buildRequest(conselho, uf, inscricao, nome);
 
-    const options = {
-        method: 'POST',
-        url,
-        form: formData,
-    };
+    console.log(`Requisição para API CONSELHO: `, { url, formData });
 
-    console.log(`Requisição para API CONSELHO: `, options);
-
-    return new Promise((resolve, reject) => {
-        request(options, (error, response, body) => {
-            if (error) {
-                console.error('Erro na API Infosimples:', error);
-                return reject(new Error('Erro na comunicação com a API.'));
-            }
-
-            const data = JSON.parse(body);
-
-            if (data.code === 200) {
-                // console.log('Resposta da API:', data.data);
-                resolve(data.data);
-            } else {
-                const errorMessage = `Erro da API: ${data.code_message}`;
-                console.warn(errorMessage);
-                reject(new Error(errorMessage));
+    try {
+        const response = await axios.post(url, formData, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
             }
         });
-    });
+
+        const data = response.data;
+
+        if (data.code === 200) {
+            // console.log('Resposta da API:', data.data);
+            return data.data;
+        } else {
+            const errorMessage = `Erro da API: ${data.code_message}`;
+            console.warn(errorMessage);
+            throw new Error(errorMessage);
+        }
+    } catch (error) {
+        if (error.response) {
+            console.error('Erro na resposta da API Infosimples:', error.response.data);
+            throw new Error(`Erro na API: ${error.response.status}`);
+        } else if (error.request) {
+            console.error('Erro na comunicação com a API:', error.message);
+            throw new Error('Erro na comunicação com a API.');
+        } else {
+            console.error('Erro:', error.message);
+            throw error;
+        }
+    }
 };
 
 // Função para construir a URL e os parâmetros corretos para cada conselho
