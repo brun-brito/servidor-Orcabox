@@ -94,8 +94,19 @@ async function processarDistribuidor(userDoc, produtosBuscados, profissional) {
             return null;
         }
 
-        const distanciaDistribuidor = await calcularDistancia(profissional.cep, distribuidorData.cep);
-        
+        // CORREÇÃO: Melhor tratamento de erro na distância
+        let distanciaDistribuidor = 1000; // Valor padrão para CEPs inválidos (1000km)
+        try {
+            const distanciaCalculada = await calcularDistancia(profissional.cep, distribuidorData.cep);
+            if (distanciaCalculada && distanciaCalculada !== Infinity && !isNaN(distanciaCalculada)) {
+                distanciaDistribuidor = distanciaCalculada;
+            } else {
+                console.log(`⚠️ Distância inválida para ${distribuidorData.nome_fantasia}, usando valor padrão: ${distanciaDistribuidor}km`);
+            }
+        } catch (error) {
+            console.log(`⚠️ Erro ao calcular distância para ${distribuidorData.nome_fantasia}: ${error.message}, usando valor padrão: ${distanciaDistribuidor}km`);
+        }
+
         let produtosEncontrados = 0;
         let valorTotalOrcamento = 0;
         let nomesDosProdutos = [];
@@ -107,33 +118,34 @@ async function processarDistribuidor(userDoc, produtosBuscados, profissional) {
             
             console.log(`Buscando produto: "${item.nome}" - ${produtosDisponiveis.length} produtos disponíveis`);
             
-            // CORREÇÃO: Limiar de qualidade mais alto
             const match = produtoMatcher.encontrarMelhorMatch(item.nome, produtosDisponiveis, 0.6);
             
             if (match) {
                 console.log(`Match encontrado: "${match.produto.nome}" - Score: ${match.similaridade.toFixed(3)} - Confiança: ${match.confianca} - Compatibilidade: ${match.compatibilidade.toFixed(3)} - SimilaridadeTextual: ${match.similaridadeTextual.toFixed(3)}`);
                 
-                // CORREÇÃO: Limiar de qualidade mais rigoroso
-                const isQualidadeMinima = match.similaridade >= 0.7 || match.confianca === 'EXATA' || match.confianca === 'ALTA'; // Aumentado de 0.65 para 0.7
+                // CORREÇÃO: Apenas inclui no orçamento se confiança for MEDIA ou superior
+                const isQualidadeMinima = match.confianca === 'EXATA' || match.confianca === 'ALTA' || match.confianca === 'MEDIA';
                 
                 if (isQualidadeMinima) {
                     produtosEncontrados++;
+                    
+                    const precoTotal = match.produto.preco * item.quantidade;
+                    valorTotalOrcamento += precoTotal;
+                    nomesDosProdutos.push(`${item.quantidade} unidade(s) de ${match.produto.nome}`);
+                    
+                    produtosDoDistribuidor.push({
+                        nome: match.produto.nome,
+                        precoUnitario: match.produto.preco,
+                        quantidadeDesejada: item.quantidade,
+                        precoTotal: precoTotal,
+                        categoria: match.produto.categoria,
+                        confiancaMatch: match.confianca,
+                        similaridade: match.similaridade,
+                        matchAdequado: isQualidadeMinima
+                    });
+                } else {
+                    console.log(`❌ Match rejeitado por baixa confiança: ${match.confianca}`);
                 }
-                
-                const precoTotal = match.produto.preco * item.quantidade;
-                valorTotalOrcamento += precoTotal;
-                nomesDosProdutos.push(`${item.quantidade} unidade(s) de ${match.produto.nome}`);
-                
-                produtosDoDistribuidor.push({
-                    nome: match.produto.nome,
-                    precoUnitario: match.produto.preco,
-                    quantidadeDesejada: item.quantidade,
-                    precoTotal: precoTotal,
-                    categoria: match.produto.categoria,
-                    confiancaMatch: match.confianca,
-                    similaridade: match.similaridade,
-                    matchAdequado: isQualidadeMinima
-                });
             } else {
                 console.log(`Nenhum match compatível encontrado para: "${item.nome}"`);
                 
@@ -150,11 +162,14 @@ async function processarDistribuidor(userDoc, produtosBuscados, profissional) {
         
         // Log para debug
         console.log(`${distribuidorData.nome_fantasia}: ${produtosEncontrados}/${produtosBuscados.length} produtos adequados encontrados. Completude: ${completude}`);
+        console.log(`${distribuidorData.nome_fantasia}: Distância=${distanciaDistribuidor}km, Valor=R$${valorTotalOrcamento}`);
 
         const mensagem = criarMensagemWhatsApp(produtosDoDistribuidor, valorTotalOrcamento);
         const longUrl = `https://api.whatsapp.com/send?phone=${distribuidorData.telefone}&text=${encodeURIComponent(mensagem)}`;
         const shortLink = gerarLinkCurto(longUrl, userId, profissional, nomesDosProdutos.join(', '));
         const pontuacao = calcularPontuacao(distanciaDistribuidor, completude, valorTotalOrcamento);
+
+        console.log(`${distribuidorData.nome_fantasia}: Pontuação final=${pontuacao}`);
 
         return {
             orcamento: "",

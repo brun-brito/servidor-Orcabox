@@ -6,6 +6,7 @@ class ProdutoMatcher {
         // Categorias semânticas baseadas em uso/aplicação (ordem importa - mais específico primeiro)
         this.categoriasSemânticas = {
             fiosPDO: ['fio', 'pdo', 'thread', 'lifting', 'sustentacao', 'barbed', 'mono', 'screw', 'espiculado'], // CORREÇÃO: Adicionados termos específicos
+            fiosSustentacao: ['silhouette'], // NOVO: Categoria específica para fios de sustentação
             agulhas: ['agulha', 'needle', 'canula'],
             toxinas: ['botox', 'xeomin', 'dysport', 'nabota', 'botulinum', 'toxina', 'botulift', 'prosigne', 'relatox'],
             preenchimento: ['juvederm', 'belotero', 'restylane', 'stylage', 'fill', 'hialuronico', 'perfectha', 'subskin'], // CORREÇÃO: Adicionado subskin
@@ -17,6 +18,7 @@ class ProdutoMatcher {
         // Termos exclusivos que anulam outras categorias (MELHORIA)
         this.termosExclusivos = {
             fiosPDO: ['fio', 'pdo', 'thread', 'barbed', 'mono', 'screw', 'espiculado'], // CORREÇÃO: Expandido
+            fiosSustentacao: ['silhouette'], // NOVO: Silhouette é exclusivo
             agulhas: ['agulha', 'needle', 'canula']
         };
 
@@ -43,7 +45,8 @@ class ProdutoMatcher {
             especificacoes: this.extrairEspecificacoes(nome),
             marca: this.extrairMarca(nome),
             modificadores: this.extrairModificadores(palavras),
-            termosPrincipais: this.extrairTermosPrincipais(palavras)
+            termosPrincipais: palavras, // CORREÇÃO: Usar palavras com espaços preservados
+            marcaPrincipal: this.extrairMarcaPrincipal(palavras) // NOVO: detecta marca principal
         };
     }
 
@@ -73,6 +76,11 @@ class ProdutoMatcher {
             return 'fio pdo';
         }
         
+        // NOVO: Detecção de fios Silhouette
+        if (nome.includes('silhouette')) {
+            return 'fio silhouette';
+        }
+        
         if (nome.includes('agulha') || nome.includes('needle') || nome.includes('canula')) {
             return 'agulha';
         }
@@ -84,7 +92,8 @@ class ProdutoMatcher {
             'hidroxiapatita': ['radiesse'],
             'plla': ['sculptra', 'aesthefill', 'plla'],
             'pcl': ['ellanse'],
-            'lidocaina': ['lidocaina', 'lido']
+            'lidocaina': ['lidocaina', 'lido'],
+            'fio silhouette': ['silhouette'] // NOVO: Princípio ativo específico para Silhouette
         };
 
         // Para produtos Fill, verifica contexto mais específico
@@ -144,6 +153,31 @@ class ProdutoMatcher {
         return match ? match[0] : null;
     }
 
+    // NOVO: Extrai marca principal com validação de palavra completa
+    extrairMarcaPrincipal(palavras) {
+        const marcasEspecificas = {
+            'perfectha': 'perfectha',
+            'juvederm': 'juvederm', 
+            'belotero': 'belotero',
+            'restylane': 'restylane',
+            'radiesse': 'radiesse',
+            'sculptra': 'sculptra',
+            'botox': 'botox',
+            'xeomin': 'xeomin',
+            'dysport': 'dysport',
+            'stylage': 'stylage',
+            'ellanse': 'ellanse',
+            'silhouette': 'silhouette' // NOVO: Adicionado Silhouette como marca
+        };
+        
+        for (const palavra of palavras) {
+            if (marcasEspecificas[palavra]) {
+                return marcasEspecificas[palavra];
+            }
+        }
+        return null;
+    }
+
     extrairModificadores(palavras) {
         const modificadores = ['intense', 'soft', 'ultra', 'plus', 'balance', 'deep', 'light', 'classic'];
         return palavras.filter(p => modificadores.includes(p));
@@ -172,17 +206,28 @@ class ProdutoMatcher {
         } else if (carac1.categoria === 'outros' || carac2.categoria === 'outros') {
             pontuacao += 25; // Produtos não mapeados ainda podem fazer match
         } else if (carac1.categoria !== carac2.categoria) {
-            // Verifica incompatibilidades específicas
-            const incompatibilidades = {
-                'fiosPDO': ['preenchimento', 'toxinas', 'bioestimuladores'],
-                'agulhas': ['preenchimento', 'toxinas', 'bioestimuladores', 'fiosPDO'],
-                'preenchimento': ['fiosPDO', 'agulhas', 'toxinas'],
-                'toxinas': ['preenchimento', 'fiosPDO', 'agulhas', 'bioestimuladores'],
-                'bioestimuladores': ['toxinas', 'fiosPDO', 'agulhas']
+            // NOVO: Compatibilidade entre categorias relacionadas
+            const categoriasCompativeis = {
+                'fiosPDO': ['fiosSustentacao'], // Fios PDO são compatíveis com fios de sustentação
+                'fiosSustentacao': ['fiosPDO'], // E vice-versa
             };
             
-            if (incompatibilidades[carac1.categoria]?.includes(carac2.categoria)) {
-                return 0; // Completamente incompatível
+            if (categoriasCompativeis[carac1.categoria]?.includes(carac2.categoria)) {
+                pontuacao += 35; // Compatibilidade alta para categorias relacionadas
+            } else {
+                // Verifica incompatibilidades específicas
+                const incompatibilidades = {
+                    'fiosPDO': ['preenchimento', 'toxinas', 'bioestimuladores'],
+                    'fiosSustentacao': ['preenchimento', 'toxinas', 'bioestimuladores'], // NOVO: Incompatibilidades do Silhouette
+                    'agulhas': ['preenchimento', 'toxinas', 'bioestimuladores', 'fiosPDO', 'fiosSustentacao'],
+                    'preenchimento': ['fiosPDO', 'agulhas', 'toxinas', 'fiosSustentacao'],
+                    'toxinas': ['preenchimento', 'fiosPDO', 'agulhas', 'bioestimuladores', 'fiosSustentacao'],
+                    'bioestimuladores': ['toxinas', 'fiosPDO', 'agulhas', 'fiosSustentacao']
+                };
+                
+                if (incompatibilidades[carac1.categoria]?.includes(carac2.categoria)) {
+                    return 0; // Completamente incompatível
+                }
             }
         }
         fatores += 40;
@@ -192,22 +237,34 @@ class ProdutoMatcher {
             if (carac1.principioAtivo === carac2.principioAtivo) {
                 pontuacao += 30;
             } else {
-                // Incompatibilidades específicas de princípios ativos
-                const incomp = [
-                    ['fio pdo', 'acido hialuronico'],
-                    ['fio pdo', 'toxina botulinica'],
-                    ['agulha', 'acido hialuronico'],
-                    ['agulha', 'toxina botulinica'],
-                    ['acido hialuronico fill lido', 'acido hialuronico']
-                ];
+                // NOVO: Compatibilidade entre princípios relacionados
+                const principiosCompativeis = {
+                    'fio pdo': ['fio silhouette'], // Fios PDO são compatíveis com fios Silhouette
+                    'fio silhouette': ['fio pdo'], // E vice-versa
+                };
                 
-                const isIncompatible = incomp.some(([p1, p2]) => 
-                    (carac1.principioAtivo === p1 && carac2.principioAtivo === p2) ||
-                    (carac1.principioAtivo === p2 && carac2.principioAtivo === p1)
-                );
-                
-                if (isIncompatible) {
-                    return 0;
+                if (principiosCompativeis[carac1.principioAtivo]?.includes(carac2.principioAtivo)) {
+                    pontuacao += 25; // Compatibilidade boa para princípios relacionados
+                } else {
+                    // Incompatibilidades específicas de princípios ativos
+                    const incomp = [
+                        ['fio pdo', 'acido hialuronico'],
+                        ['fio pdo', 'toxina botulinica'],
+                        ['fio silhouette', 'acido hialuronico'], // NOVO: Incompatibilidades do Silhouette
+                        ['fio silhouette', 'toxina botulinica'],
+                        ['agulha', 'acido hialuronico'],
+                        ['agulha', 'toxina botulinica'],
+                        ['acido hialuronico fill lido', 'acido hialuronico']
+                    ];
+                    
+                    const isIncompatible = incomp.some(([p1, p2]) => 
+                        (carac1.principioAtivo === p1 && carac2.principioAtivo === p2) ||
+                        (carac1.principioAtivo === p2 && carac2.principioAtivo === p1)
+                    );
+                    
+                    if (isIncompatible) {
+                        return 0;
+                    }
                 }
             }
         } else {
@@ -225,6 +282,16 @@ class ProdutoMatcher {
         if (maxTermos > 0) {
             const proporcaoComum = termosComuns.length / maxTermos;
             pontuacao += proporcaoComum * 20;
+            
+            // NOVO: Bonus extra se o termo principal (marca) está presente
+            if (termosComuns.length > 0) {
+                const temMarcaComum = termosComuns.some(termo => 
+                    ['silhouette', 'perfectha', 'juvederm', 'belotero', 'restylane', 'ellanse'].includes(termo)
+                );
+                if (temMarcaComum) {
+                    pontuacao += 5; // Bonus pequeno para marca em comum
+                }
+            }
         }
         fatores += 20;
 
@@ -239,113 +306,147 @@ class ProdutoMatcher {
         return pontuacao / fatores;
     }
 
-    // CORREÇÃO CRÍTICA: Melhorar containment e priorização
+    // NOVO: Verifica se uma marca está presente como palavra completa
+    verificarMarcaCompleta(nomeProduto, marca) {
+        const regex = new RegExp(`\\b${marca}\\b`, 'i');
+        return regex.test(nomeProduto);
+    }
+
+    // CORREÇÃO CRÍTICA: Melhorar similaridade textual com foco em marcas
     calcularSimilaridadeTextual(carac1, carac2) {
-        const nomeBase1 = carac1.termosPrincipais.join(' ').toLowerCase();
-        const nomeBase2 = carac2.termosPrincipais.join(' ').toLowerCase();
         const nomeCompleto1 = carac1.nome.toLowerCase();
         const nomeCompleto2 = carac2.nome.toLowerCase();
         
         // 1. CORRESPONDÊNCIA EXATA tem prioridade máxima
-        if (nomeBase1 === nomeBase2) {
+        if (nomeCompleto1 === nomeCompleto2) {
             return 1.0;
         }
         
-        // 2. CASO ESPECIAL: Produto genérico vs específico
-        // "Juvederm" deve priorizar "Juvederm" sobre "Juvederm Ultra XC"
-        if (nomeCompleto2 === nomeCompleto1) {
-            return 1.0;
+        // 2. VERIFICAÇÃO DE INCOMPATIBILIDADE DE MARCAS
+        if (carac1.marcaPrincipal && carac2.marcaPrincipal && 
+            carac1.marcaPrincipal !== carac2.marcaPrincipal) {
+            // Marcas diferentes são incompatíveis - penalização severa
+            console.log(`❌ Marcas incompatíveis: ${carac1.marcaPrincipal} vs ${carac2.marcaPrincipal}`);
+            return 0.1; // Score muito baixo para marcas diferentes
         }
         
-        // 3. CONTAINMENT DIRETO: produto buscado dentro do nome completo do estoque
-        // "Perfectha" deve encontrar "subskin perfectha 1 seringa"
-        if (nomeCompleto2.includes(nomeCompleto1) && nomeCompleto1.length >= 4) {
-            // BOOST para produtos mais simples (menos palavras)
-            const palavrasEstoque = carac2.termosPrincipais.length;
-            const palavrasBuscado = carac1.termosPrincipais.length;
+        // 3. PRIORIDADE MÁXIMA: MESMA MARCA
+        if (carac1.marcaPrincipal && carac2.marcaPrincipal && 
+            carac1.marcaPrincipal === carac2.marcaPrincipal) {
             
-            if (palavrasEstoque <= palavrasBuscado + 2) { // Permite até 2 palavras extras
-                return 0.98; // Score muito alto para containment simples
-            } else {
-                return 0.92; // Score alto para containment complexo
+            console.log(`✅ Mesma marca encontrada: ${carac1.marcaPrincipal}`);
+            
+            // Para produtos da mesma marca, score muito alto
+            const palavras1 = carac1.termosPrincipais;
+            const palavras2 = carac2.termosPrincipais;
+            
+            // Se o produto buscado tem só a marca ou marca + 1 modificador
+            if (palavras1.length <= 2) {
+                return 0.95; // Score muito alto para busca genérica da marca
+            }
+            
+            // Calcula similaridade dos modificadores (excluindo a marca)
+            const modificadores1 = palavras1.filter(p => p !== carac1.marcaPrincipal);
+            const modificadores2 = palavras2.filter(p => p !== carac1.marcaPrincipal);
+            
+            if (modificadores1.length === 0) {
+                return 0.90; // Busca só pela marca
+            }
+            
+            const similaridadeModificadores = this.calcularSimilaridadeTermos(modificadores1, modificadores2);
+            return 0.80 + (similaridadeModificadores * 0.15); // Base alta + bonus por modificadores
+        }
+        
+        // 4. UMA MARCA IDENTIFICADA: verifica containment da marca
+        if (carac1.marcaPrincipal && this.verificarMarcaCompleta(nomeCompleto2, carac1.marcaPrincipal)) {
+            console.log(`✅ Marca ${carac1.marcaPrincipal} encontrada no produto do estoque`);
+            return 0.85; // Score alto para containment de marca
+        }
+        
+        if (carac2.marcaPrincipal && this.verificarMarcaCompleta(nomeCompleto1, carac2.marcaPrincipal)) {
+            console.log(`✅ Marca ${carac2.marcaPrincipal} encontrada no produto buscado`);
+            return 0.85;
+        }
+        
+        // 5. CONTAINMENT DIRETO (sem confusão de marcas)
+        if (nomeCompleto2.includes(nomeCompleto1) && nomeCompleto1.length >= 4) {
+            // Verifica se não há conflito de marcas
+            if (!this.temConflitoDeMarcas(carac1, carac2)) {
+                return 0.80;
             }
         }
         
-        // 4. CONTAINMENT POR TERMO: cada termo do produto buscado no nome completo
+        // 6. CONTAINMENT POR TERMOS (com validação de marcas)
         for (const termo1 of carac1.termosPrincipais) {
             if (termo1.length >= 4) {
-                // Busca exata do termo no nome completo
                 const regex = new RegExp(`\\b${termo1}\\b`, 'i');
-                if (regex.test(nomeCompleto2)) {
-                    return 0.95; // Score muito alto para match de termo exato
-                }
-                
-                // Busca parcial (containment)
-                if (nomeCompleto2.includes(termo1)) {
-                    return 0.90; // Score alto para containment de termo
+                if (regex.test(nomeCompleto2) && !this.temConflitoDeMarcas(carac1, carac2)) {
+                    return 0.75;
                 }
             }
         }
         
-        // 5. PRIORIZAÇÃO DE PRODUTOS GENÉRICOS
-        // Se produto do estoque contém o buscado, prioriza produtos mais simples
-        if (nomeBase1.includes(nomeBase2) && nomeBase2.length >= 4) {
-            const complexidadeBuscado = carac1.termosPrincipais.length;
-            const complexidadeEstoque = carac2.termosPrincipais.length;
-            
-            // Quanto mais simples o produto do estoque, maior o score
-            if (complexidadeEstoque === 1) {
-                return 0.96; // Produto de 1 palavra: prioridade máxima
-            } else if (complexidadeEstoque <= complexidadeBuscado) {
-                return 0.92; // Produto mais simples: alta prioridade
-            } else {
-                return 0.82; // Produto mais complexo: prioridade menor
-            }
+        // 7. CÁLCULO PADRÃO (se não há conflitos de marca)
+        if (!this.temConflitoDeMarcas(carac1, carac2)) {
+            let pontuacao = 0;
+            let fatores = 0;
+
+            const sim1 = this.calcularSimilaridadeTermos(carac1.termosPrincipais, carac2.termosPrincipais);
+            pontuacao += sim1 * 60;
+            fatores += 60;
+
+            const simNome = this.calcularSimilaridadeLevenshtein(carac1.nome, carac2.nome);
+            pontuacao += simNome * 25;
+            fatores += 25;
+
+            const simSpecs = this.calcularSimilaridadeEspecificacoes(carac1.especificacoes, carac2.especificacoes);
+            pontuacao += simSpecs * 15;
+            fatores += 15;
+
+            return pontuacao / fatores;
         }
         
-        // 6. CONTAINMENT ENTRE TERMOS
-        let melhorContainment = 0;
-        for (const termo1 of carac1.termosPrincipais) {
-            for (const termo2 of carac2.termosPrincipais) {
-                if (termo1.length >= 3 && termo2.toLowerCase().includes(termo1)) {
-                    melhorContainment = Math.max(melhorContainment, 0.88);
-                } else if (termo2.length >= 3 && termo1.includes(termo2.toLowerCase())) {
-                    melhorContainment = Math.max(melhorContainment, 0.85);
-                }
-            }
-        }
-        
-        if (melhorContainment > 0) {
-            return melhorContainment;
-        }
-
-        // 7. CÁLCULO NORMAL (fallback)
-        let pontuacao = 0;
-        let fatores = 0;
-
-        const sim1 = this.calcularSimilaridadeTermos(carac1.termosPrincipais, carac2.termosPrincipais);
-        pontuacao += sim1 * 60;
-        fatores += 60;
-
-        const simNome = this.calcularSimilaridadeLevenshtein(carac1.nome, carac2.nome);
-        pontuacao += simNome * 25;
-        fatores += 25;
-
-        const simSpecs = this.calcularSimilaridadeEspecificacoes(carac1.especificacoes, carac2.especificacoes);
-        pontuacao += simSpecs * 15;
-        fatores += 15;
-
-        return pontuacao / fatores;
+        // 8. FALLBACK: Score muito baixo para evitar matches incorretos
+        return 0.1;
     }
 
-    // Melhora o cálculo de similaridade de termos para dar prioridade ao containment
+    // NOVO: Detecta conflitos de marcas
+    temConflitoDeMarcas(carac1, carac2) {
+        // Se ambos têm marcas identificadas e são diferentes
+        if (carac1.marcaPrincipal && carac2.marcaPrincipal && 
+            carac1.marcaPrincipal !== carac2.marcaPrincipal) {
+            return true;
+        }
+        
+        // Se um tem marca identificada e o outro contém uma marca diferente
+        const marcasConhecidas = ['perfectha', 'juvederm', 'belotero', 'restylane', 'radiesse', 'sculptra', 'botox', 'xeomin', 'dysport', 'silhouette']; // NOVO: Adicionado silhouette
+        
+        if (carac1.marcaPrincipal) {
+            for (const marca of marcasConhecidas) {
+                if (marca !== carac1.marcaPrincipal && this.verificarMarcaCompleta(carac2.nome, marca)) {
+                    return true;
+                }
+            }
+        }
+        
+        if (carac2.marcaPrincipal) {
+            for (const marca of marcasConhecidas) {
+                if (marca !== carac2.marcaPrincipal && this.verificarMarcaCompleta(carac1.nome, marca)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    // Melhora o cálculo de similaridade de termos
     calcularSimilaridadeTermos(termos1, termos2) {
         if (termos1.length === 0 && termos2.length === 0) return 1;
         if (termos1.length === 0 || termos2.length === 0) return 0;
 
         let melhorScore = 0;
         let termosExatos = 0;
-        let termosContainment = 0;
         
         for (const termo1 of termos1) {
             let melhorMatchTermo = 0;
@@ -361,16 +462,15 @@ class ProdutoMatcher {
                 // Verifica containment (prioritário)
                 if (termo1.length >= 3 && termo2.includes(termo1)) {
                     melhorMatchTermo = Math.max(melhorMatchTermo, 0.9);
-                    termosContainment++;
                 } else if (termo2.length >= 3 && termo1.includes(termo2)) {
                     melhorMatchTermo = Math.max(melhorMatchTermo, 0.85);
                 }
                 
                 // Similaridade Levenshtein para termos próximos (menor prioridade)
-                if (melhorMatchTermo < 0.8) {
+                if (melhorMatchTermo < 0.7) {
                     const distance = levenshteinDistance(termo1, termo2);
                     const maxLen = Math.max(termo1.length, termo2.length);
-                    if (distance <= maxLen * 0.25) { // Reduzido de 30% para 25%
+                    if (distance <= maxLen * 0.3) {
                         const simScore = 1 - (distance / maxLen);
                         melhorMatchTermo = Math.max(melhorMatchTermo, simScore * 0.6);
                     }
@@ -380,11 +480,9 @@ class ProdutoMatcher {
             melhorScore = Math.max(melhorScore, melhorMatchTermo);
         }
 
-        // Boost adicional se há correspondências exatas ou containment
+        // Boost para correspondências exatas
         if (termosExatos > 0) {
             melhorScore = Math.min(1.0, melhorScore * 1.1);
-        } else if (termosContainment > 0) {
-            melhorScore = Math.min(1.0, melhorScore * 1.05);
         }
 
         return melhorScore;
@@ -419,7 +517,7 @@ class ProdutoMatcher {
         return total > 0 ? matches / total : 1;
     }
 
-    // Função principal de matching com limiar mais alto e priorização melhorada
+    // Função principal de matching com validação de marcas
     encontrarMelhorMatch(produtoBuscado, produtosEstoque, limiarCompatibilidade = 0.6) {
         const caracBuscado = this.extrairCaracteristicasSemânticas(produtoBuscado);
         let melhorMatch = null;
@@ -427,7 +525,7 @@ class ProdutoMatcher {
         let candidatos = [];
 
         console.log(`\n🔍 Produto buscado: "${produtoBuscado}"`);
-        console.log(`📊 Categoria: ${caracBuscado.categoria} | Princípio: ${caracBuscado.principioAtivo}`);
+        console.log(`📊 Categoria: ${caracBuscado.categoria} | Princípio: ${caracBuscado.principioAtivo} | Marca: ${caracBuscado.marcaPrincipal}`);
         console.log(`🏷️  Termos principais: [${caracBuscado.termosPrincipais.join(', ')}]`);
 
         for (const produto of produtosEstoque) {
@@ -441,34 +539,18 @@ class ProdutoMatcher {
 
             const similaridadeTextual = this.calcularSimilaridadeTextual(caracBuscado, caracEstoque);
             
-            let scoreFinal = (compatibilidade * 0.6) + (similaridadeTextual * 0.4);
+            let scoreFinal = (compatibilidade * 0.5) + (similaridadeTextual * 0.5); // CORREÇÃO: Mais peso na similaridade textual
             
-            // CORREÇÃO: Boost mais agressivo para produtos genéricos
-            const complexidadeBuscado = caracBuscado.termosPrincipais.length;
-            const complexidadeEstoque = caracEstoque.termosPrincipais.length;
-            
-            // Boost para produtos com complexidade similar ou menor
-            if (complexidadeEstoque <= complexidadeBuscado) {
-                if (similaridadeTextual >= 0.9) {
-                    scoreFinal = Math.min(1.0, scoreFinal * 1.2); // Boost forte
-                } else if (similaridadeTextual >= 0.8) {
-                    scoreFinal = Math.min(1.0, scoreFinal * 1.15); // Boost médio
-                }
+            // BOOST para mesma marca
+            if (caracBuscado.marcaPrincipal && caracEstoque.marcaPrincipal && 
+                caracBuscado.marcaPrincipal === caracEstoque.marcaPrincipal) {
+                scoreFinal = Math.min(1.0, scoreFinal * 1.3); // Boost de 30% para mesma marca
             }
             
-            // Boost para correspondências muito próximas
-            if (similaridadeTextual >= 0.95) {
-                scoreFinal = Math.min(1.0, scoreFinal * 1.1);
-            }
-            
-            // CORREÇÃO: Boost para containment direto
-            const nomeNormalizado1 = normalizarTexto(produtoBuscado).toLowerCase();
-            const nomeNormalizado2 = normalizarTexto(produto.nome).toLowerCase();
-            
-            if (nomeNormalizado1 === nomeNormalizado2) {
-                scoreFinal = 1.0; // Match perfeito
-            } else if (nomeNormalizado2.includes(nomeNormalizado1) && nomeNormalizado1.length >= 4) {
-                scoreFinal = Math.min(1.0, scoreFinal * 1.15); // Boost para containment
+            // PENALIZAÇÃO para marcas diferentes
+            if (caracBuscado.marcaPrincipal && caracEstoque.marcaPrincipal && 
+                caracBuscado.marcaPrincipal !== caracEstoque.marcaPrincipal) {
+                scoreFinal *= 0.3; // Penalização severa para marcas diferentes
             }
             
             candidatos.push({
@@ -478,8 +560,9 @@ class ProdutoMatcher {
                 similaridadeTextual,
                 categoria: caracEstoque.categoria,
                 principio: caracEstoque.principioAtivo,
-                complexidade: complexidadeEstoque,
-                termos: caracEstoque.termosPrincipais
+                complexidade: caracEstoque.termosPrincipais.length,
+                termos: caracEstoque.termosPrincipais,
+                marca: caracEstoque.marcaPrincipal
             });
             
             if (scoreFinal > melhorScore) {
@@ -497,13 +580,14 @@ class ProdutoMatcher {
         // Log melhorado com mais detalhes
         const topCandidatos = candidatos
             .sort((a, b) => b.score - a.score)
-            .slice(0, 5); // Mostrar top 5 para debug
+            .slice(0, 5);
         
         if (topCandidatos.length > 0) {
             console.log('🏆 Top 5 candidatos:');
             topCandidatos.forEach((c, i) => {
                 const match = c.score === melhorScore ? ' ⭐' : '';
-                console.log(`  ${i+1}. "${c.nome}" - Score: ${c.score.toFixed(3)} - Termos: [${c.termos.join(', ')}] - Complexidade: ${c.complexidade}${match}`);
+                const marcaInfo = c.marca ? `Marca: ${c.marca}` : 'Marca: N/A';
+                console.log(`  ${i+1}. "${c.nome}" - Score: ${c.score.toFixed(3)} - ${marcaInfo} - Termos: [${c.termos.join(', ')}]${match}`);
             });
         } else {
             console.log('❌ Nenhum candidato encontrado');
@@ -513,9 +597,9 @@ class ProdutoMatcher {
     }
 
     calcularConfianca(score) {
-        if (score >= 0.95) return 'EXATA';
-        if (score >= 0.8) return 'ALTA';
-        if (score >= 0.65) return 'MEDIA'; // Ajustado
+        if (score >= 0.90) return 'EXATA';  // CORREÇÃO: Limiar mais alto para EXATA
+        if (score >= 0.75) return 'ALTA';   // CORREÇÃO: Mantido
+        if (score >= 0.60) return 'MEDIA';  // CORREÇÃO: Mantido
         return 'BAIXA';
     }
 }
